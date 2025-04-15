@@ -1,17 +1,13 @@
 {
     "version": 2,
-    "buildCommand": "cd frontend && next build",
-    "outputDirectory": "frontend/.next",
-    "installCommand": "cd frontend && npm install",
-    "framework": "nextjs",
     "builds": [
+        {
+            "src": "frontend/next.config.ts",
+            "use": "@vercel/next"
+        },
         {
             "src": "api/index.py",
             "use": "@vercel/python"
-        },
-        {
-            "src": "frontend",
-            "use": "@vercel/next"
         }
     ],
     "routes": [
@@ -20,11 +16,8 @@
             "dest": "/api/$1"
         },
         {
-            "handle": "filesystem"
-        },
-        {
             "src": "/(.*)",
-            "dest": "/frontend/$1"
+            "dest": "/$1"
         }
     ]
 } 
