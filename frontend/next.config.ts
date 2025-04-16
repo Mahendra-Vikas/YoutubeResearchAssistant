@@ -6,12 +6,12 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: '/api/:path*',
+        destination: 'https://youtube-research-backend.onrender.com/api/:path*',
       },
     ];
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://youtube-research-backend.onrender.com',
   },
   images: {
     domains: ['i.ytimg.com', 'yt3.ggpht.com'],
