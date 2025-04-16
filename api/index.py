@@ -95,26 +95,32 @@ async def chat_question(request: Request):
             logger.warning("Question field is missing in request")
             return JSONResponse(
                 status_code=400,
-                content={"error": "Question is required"}
+                content={"error": "Question is required", "success": False}
             )
             
         logger.info(f"Processing chat question: {question}")
         result = run_agent(question, context="general")
         
+        # Ensure consistent response format
+        response_data = {
+            "response": result.get("response") or result.get("answer"),
+            "success": True
+        }
+        
         if "error" in result:
             logger.error(f"Error processing chat question: {result['error']}")
             return JSONResponse(
                 status_code=500,
-                content={"error": result["error"]}
+                content={"error": result["error"], "success": False}
             )
             
         logger.info("Successfully processed chat question")
-        return JSONResponse(content=result)
+        return JSONResponse(content=response_data)
     except Exception as e:
         logger.error(f"Unexpected error in chat_question: {str(e)}", exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={"error": f"Internal server error: {str(e)}"}
+            content={"error": f"Internal server error: {str(e)}", "success": False}
         )
 
 @app.get("/api/health")

@@ -33,6 +33,7 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
+      console.log('Making API request to:', `${config.apiUrl}/api/chat`);
       const response = await fetch(`${config.apiUrl}/api/chat`, {
         method: 'POST',
         headers: {
@@ -41,11 +42,29 @@ export default function ChatInterface() {
         body: JSON.stringify({ question: input }),
       });
 
+      if (!response.ok) {
+        console.error('API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      }
+
       const data = await response.json();
-      const assistantMessage: Message = { role: 'assistant' as const, content: data.response };
+      console.log('API Response:', data);
+
+      const assistantMessage: Message = { 
+        role: 'assistant' as const, 
+        content: data.response || data.answer || 'Sorry, I could not process your request.'
+      };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error:', error);
+      const errorMessage: Message = {
+        role: 'assistant' as const,
+        content: 'Sorry, there was an error processing your request. Please try again.'
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
