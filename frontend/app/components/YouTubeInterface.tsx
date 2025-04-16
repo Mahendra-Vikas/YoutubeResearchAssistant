@@ -36,13 +36,13 @@ export default function YouTubeInterface() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    const userMessage = { role: 'user', content: input };
+    const userMessage: YouTubeMessage = { role: 'user' as const, content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/youtube', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/youtube`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -51,8 +51,8 @@ export default function YouTubeInterface() {
       });
 
       const data = await response.json();
-      const assistantMessage = { 
-        role: 'assistant', 
+      const assistantMessage: YouTubeMessage = { 
+        role: 'assistant' as const, 
         content: data.response,
         data: data.data
       };
