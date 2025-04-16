@@ -2,10 +2,10 @@ import os
 import logging
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from mangum import Mangum
 from dotenv import load_dotenv
 from agent import run_agent
-from fastapi.responses import JSONResponse
 
 # Configure logging
 logging.basicConfig(
@@ -34,13 +34,14 @@ for var in required_env_vars:
 
 app = FastAPI()
 
-# Configure CORS
+# Configure CORS with more specific settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Update this with your frontend URL in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 @app.post("/api/youtube")
@@ -52,7 +53,10 @@ async def youtube_question(request: Request):
         
         if not question:
             logger.warning("Question field is missing in request")
-            raise HTTPException(status_code=400, detail="Question is required")
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Question is required"}
+            )
             
         logger.info(f"Processing YouTube question: {question}")
         result = run_agent(question, context="youtube")
@@ -65,7 +69,7 @@ async def youtube_question(request: Request):
             )
             
         logger.info("Successfully processed YouTube question")
-        return result
+        return JSONResponse(content=result)
     except Exception as e:
         logger.error(f"Unexpected error in youtube_question: {str(e)}", exc_info=True)
         return JSONResponse(
@@ -82,7 +86,10 @@ async def chat_question(request: Request):
         
         if not question:
             logger.warning("Question field is missing in request")
-            raise HTTPException(status_code=400, detail="Question is required")
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Question is required"}
+            )
             
         logger.info(f"Processing chat question: {question}")
         result = run_agent(question, context="general")
@@ -95,7 +102,7 @@ async def chat_question(request: Request):
             )
             
         logger.info("Successfully processed chat question")
-        return result
+        return JSONResponse(content=result)
     except Exception as e:
         logger.error(f"Unexpected error in chat_question: {str(e)}", exc_info=True)
         return JSONResponse(
@@ -107,8 +114,13 @@ async def chat_question(request: Request):
 async def health_check():
     try:
         logger.info("Health check request received")
-        # Test Gemini and Pinecone connections here
-        return {"status": "ok", "message": "All services are operational"}
+        # Verify environment variables
+        for var in required_env_vars:
+            if not os.getenv(var):
+                raise EnvironmentError(f"Missing {var}")
+        return JSONResponse(
+            content={"status": "ok", "message": "All services are operational"}
+        )
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}", exc_info=True)
         return JSONResponse(
