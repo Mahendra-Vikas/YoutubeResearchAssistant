@@ -1,7 +1,26 @@
-from fastapi import FastAPI, Request
+import os
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
+from dotenv import load_dotenv
 from agent import run_agent
+
+# Load environment variables
+load_dotenv()
+
+# Verify required environment variables
+required_env_vars = [
+    "GEMINI_API_KEY",
+    "PINECONE_API_KEY",
+    "YOUTUBE_API_KEY",
+    "PINECONE_INDEX",
+    "PINECONE_CLOUD",
+    "PINECONE_REGION"
+]
+
+for var in required_env_vars:
+    if not os.getenv(var):
+        raise EnvironmentError(f"Missing required environment variable: {var}")
 
 app = FastAPI()
 
@@ -20,7 +39,7 @@ async def youtube_question(request: Request):
     question = data.get("question")
     
     if not question:
-        return {"error": "No question provided"}
+        raise HTTPException(status_code=400, detail="Question is required")
         
     result = run_agent(question, context="youtube")
     return result
@@ -31,14 +50,14 @@ async def chat_question(request: Request):
     question = data.get("question")
     
     if not question:
-        return {"error": "No question provided"}
+        raise HTTPException(status_code=400, detail="Question is required")
         
     result = run_agent(question, context="general")
     return result
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "ok"}
 
-# Create handler for Vercel
+# Create handler for AWS Lambda
 handler = Mangum(app) 

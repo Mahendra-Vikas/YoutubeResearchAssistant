@@ -1,192 +1,166 @@
+import os
 import logging
-from typing import Dict, Any, Optional, List
-from datetime import datetime
+from typing import Dict, Any, List, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-import os
+from dotenv import load_dotenv
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY', 'AIzaSyATUUbrkJyOuMp_RimQatbsM0fhviZtWJU')
+# Load environment variables
+load_dotenv()
 
 def get_youtube_client():
-    """Get authenticated YouTube client"""
+    """
+    Create and return an authenticated YouTube client.
+    """
     try:
-        return build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
+        api_key = os.getenv("YOUTUBE_API_KEY")
+        if not api_key:
+            raise ValueError("YOUTUBE_API_KEY environment variable is not set")
+        
+        return build("youtube", "v3", developerKey=api_key)
     except Exception as e:
-        logger.error(f"Error creating YouTube client: {str(e)}")
-        return None
+        logger.error(f"Failed to create YouTube client: {str(e)}")
+        raise
 
 def format_number(num: int) -> str:
-    """Format large numbers in a readable way"""
+    """
+    Format large numbers into readable strings (e.g., 1000000 -> 1M).
+    """
     if num >= 1000000000:
         return f"{num/1000000000:.1f}B"
-    if num >= 1000000:
+    elif num >= 1000000:
         return f"{num/1000000:.1f}M"
-    if num >= 1000:
+    elif num >= 1000:
         return f"{num/1000:.1f}K"
     return str(num)
 
 def extract_channel_name(query: str) -> Optional[str]:
-    """Extract channel name from query"""
+    """
+    Extract channel name from a query string.
+    """
     query = query.lower()
+    keywords = ["channel", "videos", "latest", "stats", "statistics", "info", "about"]
     
-    # Try different patterns
-    patterns = [
-        ("channel", "channel"),
-        ("from", "from"),
-        ("by", "by")
-    ]
+    # Remove common words and punctuation
+    words = query.replace("'s", "").replace("?", "").replace(".", "").split()
     
-    for keyword, pattern in patterns:
-        if pattern in query:
-            parts = query.split(pattern)
-            if len(parts) > 1:
-                # Get the part after the pattern and clean it
-                channel = parts[1].strip().strip('"').strip("'").strip()
-                # Remove common words that might follow the channel name
-                stop_words = ["latest", "video", "videos", "content", "and", "show", "me", "the"]
-                for word in stop_words:
-                    if f" {word} " in channel:
-                        channel = channel.split(f" {word} ")[0].strip()
-                return channel
-    
+    # Look for words that come after keywords
+    for i, word in enumerate(words):
+        if word in keywords and i + 1 < len(words):
+            return words[i + 1]
+            
+    # If no keyword found, look for capitalized words in original query
+    original_words = query.split()
+    for word in original_words:
+        if word[0].isupper():
+            return word.lower()
+            
     return None
 
-def get_channel_info(channel_name: str) -> Dict[str, Any]:
-    """Get channel information using YouTube Data API"""
+def get_channel_info(channel_name: str) -> Optional[Dict[str, Any]]:
+    """
+    Get channel information including subscriber count and video statistics.
+    """
     try:
         youtube = get_youtube_client()
-        if not youtube:
-            return {"success": False, "error": "Could not initialize YouTube client"}
-
+        
         # Search for the channel
         search_response = youtube.search().list(
             q=channel_name,
-            type='channel',
-            part='id,snippet',
+            type="channel",
+            part="id,snippet",
             maxResults=1
         ).execute()
-
-        if not search_response.get('items'):
-            return {"success": False, "error": f"Channel '{channel_name}' not found"}
-
-        channel_id = search_response['items'][0]['id']['channelId']
-        channel_title = search_response['items'][0]['snippet']['title']
-
+        
+        if not search_response.get("items"):
+            logger.warning(f"No channel found for name: {channel_name}")
+            return None
+            
+        channel_id = search_response["items"][0]["id"]["channelId"]
+        
         # Get channel statistics
         channel_response = youtube.channels().list(
-            part='statistics',
+            part="statistics,snippet",
             id=channel_id
         ).execute()
-
-        if not channel_response.get('items'):
-            return {"success": False, "error": "Could not fetch channel statistics"}
-
-        stats = channel_response['items'][0]['statistics']
-
+        
+        if not channel_response.get("items"):
+            logger.warning(f"No statistics found for channel ID: {channel_id}")
+            return None
+            
+        channel = channel_response["items"][0]
+        stats = channel["statistics"]
+        
         return {
-            "success": True,
-            "channel_id": channel_id,
-            "channel_name": channel_title,
-            "subscriber_count": int(stats.get('subscriberCount', 0)),
-            "video_count": int(stats.get('videoCount', 0)),
-            "view_count": int(stats.get('viewCount', 0))
+            "name": channel["snippet"]["title"],
+            "description": channel["snippet"]["description"],
+            "subscriber_count": format_number(int(stats["subscriberCount"])),
+            "video_count": format_number(int(stats["videoCount"])),
+            "view_count": format_number(int(stats["viewCount"])),
+            "channel_id": channel_id
         }
-
+        
     except HttpError as e:
         logger.error(f"YouTube API error: {str(e)}")
-        return {"success": False, "error": f"YouTube API error: {str(e)}"}
+        return None
     except Exception as e:
-        logger.error(f"Error fetching channel info: {str(e)}")
-        return {"success": False, "error": str(e)}
+        logger.error(f"Error getting channel info: {str(e)}")
+        return None
 
-def get_latest_videos(channel_name: str, max_results: int = 5) -> Dict[str, Any]:
-    """Get latest videos from a channel using YouTube Data API"""
+def get_latest_videos(channel_name: str, max_results: int = 5) -> List[Dict[str, Any]]:
+    """
+    Get the latest videos from a channel with detailed statistics.
+    """
     try:
-        channel_info = get_channel_info(channel_name)
-        if not channel_info["success"]:
-            return channel_info
-
         youtube = get_youtube_client()
-        if not youtube:
-            return {"success": False, "error": "Could not initialize YouTube client"}
-
-        # Get channel's latest videos
+        
+        # First get channel ID
+        channel_info = get_channel_info(channel_name)
+        if not channel_info:
+            return []
+            
+        # Get latest videos
         videos_response = youtube.search().list(
             channelId=channel_info["channel_id"],
             order="date",
             part="id,snippet",
-            type="video",
-            maxResults=max_results
+            maxResults=max_results,
+            type="video"
         ).execute()
-
-        if not videos_response.get('items'):
-            return {
-                "success": False,
-                "error": f"No videos found for channel '{channel_name}'"
-            }
-
-        # Get video IDs
-        video_ids = [item['id']['videoId'] for item in videos_response['items']]
-
-        # Get detailed video statistics
-        videos_stats = youtube.videos().list(
-            part="statistics,snippet",
-            id=','.join(video_ids)
-        ).execute()
-
-        videos = []
-        for video in videos_stats['items']:
-            stats = video['statistics']
-            snippet = video['snippet']
+        
+        if not videos_response.get("items"):
+            return []
             
-            video_data = {
-                "title": snippet['title'],
-                "videoId": video['id'],
-                "view_count": int(stats.get('viewCount', 0)),
-                "like_count": int(stats.get('likeCount', 0)),
-                "comment_count": int(stats.get('commentCount', 0)),
-                "publish_date": snippet['publishedAt'],
-                "thumbnail": snippet['thumbnails']['high']['url'],
-                "description": snippet['description']
-            }
-            videos.append(video_data)
-
-        # Format response with emojis and readable numbers
-        formatted_videos = []
-        for video in videos:
-            stats_parts = [
-                f"👁️ {format_number(video['view_count'])} views",
-                f"👍 {format_number(video['like_count'])} likes",
-                f"💬 {format_number(video['comment_count'])} comments"
-            ]
-            formatted_videos.append(
-                f"📺 {video['title']}\n   {' • '.join(stats_parts)}"
-            )
-
-        return {
-            "success": True,
-            "channel_name": channel_info["channel_name"],
-            "channel_stats": {
-                "subscribers": format_number(channel_info["subscriber_count"]),
-                "total_views": format_number(channel_info["view_count"]),
-                "video_count": channel_info["video_count"]
-            },
-            "videos": videos,
-            "formatted_response": "\n\n".join([
-                f"📊 Channel Stats for {channel_info['channel_name']}:",
-                f"👥 {format_number(channel_info['subscriber_count'])} subscribers",
-                f"👁️ {format_number(channel_info['view_count'])} total views",
-                f"📼 {channel_info['video_count']} videos\n",
-                "Latest Videos:",
-                *formatted_videos
-            ])
-        }
-
+        # Get detailed video statistics
+        video_ids = [item["id"]["videoId"] for item in videos_response["items"]]
+        videos_stats = youtube.videos().list(
+            part="statistics,contentDetails",
+            id=",".join(video_ids)
+        ).execute()
+        
+        # Combine video information
+        videos = []
+        for video, stats in zip(videos_response["items"], videos_stats["items"]):
+            videos.append({
+                "title": video["snippet"]["title"],
+                "description": video["snippet"]["description"],
+                "published_at": video["snippet"]["publishedAt"],
+                "views": format_number(int(stats["statistics"]["viewCount"])),
+                "likes": format_number(int(stats["statistics"].get("likeCount", 0))),
+                "comments": format_number(int(stats["statistics"].get("commentCount", 0))),
+                "duration": stats["contentDetails"]["duration"],
+                "url": f"https://youtube.com/watch?v={video['id']['videoId']}"
+            })
+            
+        return videos
+        
     except HttpError as e:
         logger.error(f"YouTube API error: {str(e)}")
-        return {"success": False, "error": f"YouTube API error: {str(e)}"}
+        return []
     except Exception as e:
-        logger.error(f"Error fetching videos: {str(e)}")
-        return {"success": False, "error": str(e)} 
+        logger.error(f"Error getting latest videos: {str(e)}")
+        return [] 

@@ -1,11 +1,10 @@
 import os
 import logging
-from dotenv import load_dotenv
-from typing import Dict, Any
 import google.generativeai as genai
-from googleapiclient.discovery import build
-from langchain_google_genai import ChatGoogleGenerativeAI
-from youtube_utils import extract_channel_name, get_latest_videos, get_video_info
+from dotenv import load_dotenv
+from youtube_utils import get_channel_info, get_latest_videos, extract_channel_name
+import pinecone
+from typing import Dict, Any, Optional
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -14,92 +13,78 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Verify required environment variables
-required_env_vars = ["GEMINI_API_KEY", "PINECONE_API_KEY"]
-for var in required_env_vars:
-    if not os.getenv(var):
-        raise EnvironmentError(f"Missing required environment variable: {var}")
-
-# Map GEMINI_API_KEY to what LangChain expects
-os.environ["GOOGLE_API_KEY"] = os.getenv("GEMINI_API_KEY")
-
-# Initialize models
+# Initialize Gemini
 try:
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro-latest")
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    model = genai.GenerativeModel('gemini-pro')
 except Exception as e:
-    logger.error(f"Failed to initialize AI models: {str(e)}")
+    logger.error(f"Failed to initialize Gemini: {str(e)}")
     raise
 
-# Configure Gemini
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+# Initialize Pinecone
+try:
+    pinecone.init(
+        api_key=os.getenv("PINECONE_API_KEY"),
+        environment=f"{os.getenv('PINECONE_CLOUD')}-{os.getenv('PINECONE_REGION')}"
+    )
+    index = pinecone.Index(os.getenv("PINECONE_INDEX"))
+except Exception as e:
+    logger.error(f"Failed to initialize Pinecone: {str(e)}")
+    raise
 
-def analyze_youtube_query(question: str) -> Dict[str, Any]:
-    """Analyze if the question is about YouTube data"""
+def analyze_youtube_query(query: str) -> Dict[str, Any]:
+    """
+    Analyze a YouTube-related query and fetch relevant information.
+    """
     try:
-        question = question.lower()
-        
-        # Extract channel name from the question
-        channel_name = extract_channel_name(question)
-        
-        if channel_name:
-            # Get channel's latest videos and stats
-            result = get_latest_videos(channel_name)
-            
-            if result["success"]:
-                return {
-                    "type": "channel",
-                    "data": result,
-                    "response": result["formatted_response"]
-                }
-            else:
-                return {
-                    "type": "error",
-                    "error": result["error"],
-                    "response": f"I encountered an error while fetching data for {channel_name}: {result['error']}"
-                }
+        channel_name = extract_channel_name(query)
+        if not channel_name:
+            return {"error": "Could not extract channel name from query"}
+
+        channel_info = get_channel_info(channel_name)
+        if not channel_info:
+            return {"error": f"Could not find channel information for {channel_name}"}
+
+        latest_videos = get_latest_videos(channel_name, max_results=5)
         
         return {
-            "type": "unknown",
-            "response": "I couldn't identify a specific YouTube channel in your question. Try asking about a specific channel, for example: 'Show me MrBeast's latest videos' or 'What are PewDiePie's channel stats?'"
+            "channel_info": channel_info,
+            "latest_videos": latest_videos,
+            "query": query
         }
-        
     except Exception as e:
         logger.error(f"Error analyzing YouTube query: {str(e)}")
-        return {
-            "type": "error",
-            "error": str(e),
-            "response": "I encountered an error while processing your request. Please try again or rephrase your question."
-        }
+        return {"error": f"Failed to analyze YouTube query: {str(e)}"}
 
 def run_agent(question: str, context: str = "general") -> Dict[str, Any]:
-    """Run the agent with the given question and context"""
+    """
+    Run the agent with the given question and context.
+    """
     try:
         if context == "youtube":
-            # Analyze YouTube-specific questions
-            result = analyze_youtube_query(question)
+            # Handle YouTube-specific queries
+            youtube_data = analyze_youtube_query(question)
+            if "error" in youtube_data:
+                return youtube_data
+
+            # Generate response using Gemini
+            prompt = f"""
+            Question: {question}
+            Channel Info: {youtube_data['channel_info']}
+            Latest Videos: {youtube_data['latest_videos']}
+            Please provide a detailed analysis based on this information.
+            """
             
-            if result["type"] == "channel":
-                return {
-                    "response": result["response"],
-                    "data": result["data"]
-                }
-            elif result["type"] == "error":
-                return {
-                    "response": result["response"],
-                    "error": result.get("error")
-                }
-            else:
-                return {
-                    "response": result["response"]
-                }
-            
-        # For general chat or unknown contexts, use the LLM
-        response = llm.invoke(question).content
-        return {"response": response}
+            response = model.generate_content(prompt)
+            return {
+                "answer": response.text,
+                "youtube_data": youtube_data
+            }
+        else:
+            # Handle general queries using Gemini
+            response = model.generate_content(question)
+            return {"answer": response.text}
             
     except Exception as e:
-        logger.error(f"Error running agent: {str(e)}")
-        return {
-            "response": "I apologize, but I encountered an error processing your request. Please try again or rephrase your question.",
-            "error": str(e)
-        } 
+        logger.error(f"Error in run_agent: {str(e)}")
+        return {"error": f"Failed to process query: {str(e)}"} 
