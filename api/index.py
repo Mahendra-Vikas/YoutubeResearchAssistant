@@ -61,20 +61,27 @@ async def youtube_question(request: Request):
         logger.info(f"Processing YouTube question: {question}")
         result = run_agent(question, context="youtube")
         
+        # Ensure consistent response format
+        response_data = {
+            "response": result.get("response") or result.get("answer"),
+            "data": result.get("data") or result.get("youtube_data"),
+            "success": True
+        }
+        
         if "error" in result:
             logger.error(f"Error processing YouTube question: {result['error']}")
             return JSONResponse(
                 status_code=500,
-                content={"error": result["error"]}
+                content={"error": result["error"], "success": False}
             )
             
         logger.info("Successfully processed YouTube question")
-        return JSONResponse(content=result)
+        return JSONResponse(content=response_data)
     except Exception as e:
         logger.error(f"Unexpected error in youtube_question: {str(e)}", exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={"error": f"Internal server error: {str(e)}"}
+            content={"error": f"Internal server error: {str(e)}", "success": False}
         )
 
 @app.post("/api/chat")

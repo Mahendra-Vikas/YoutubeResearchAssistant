@@ -52,31 +52,20 @@ export default function YouTubeInterface() {
       });
 
       if (!response.ok) {
-        console.error('API Error:', {
-          status: response.status,
-          statusText: response.statusText,
-        });
-        const errorData = await response.text();
-        console.error('Error response:', errorData);
         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
       console.log('API Response:', data);
       
-      if (!data.answer) {
-        console.error('Invalid response format:', data);
-        throw new Error('Invalid response format from API');
-      }
-
       const assistantMessage: YouTubeMessage = { 
         role: 'assistant' as const, 
-        content: data.answer,
-        data: data.youtube_data
+        content: data.response || data.answer || 'Sorry, I could not process your request.',
+        data: data.youtube_data || data.data
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error details:', error);
+      console.error('Error:', error);
       const errorMessage: YouTubeMessage = {
         role: 'assistant' as const,
         content: 'Sorry, there was an error processing your request. Please try again.'
