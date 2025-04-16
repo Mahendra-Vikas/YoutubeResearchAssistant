@@ -50,39 +50,14 @@ async def youtube_question(request: Request):
         logger.info("Received YouTube question request")
         data = await request.json()
         question = data.get("question")
-        
         if not question:
-            logger.warning("Question field is missing in request")
-            return JSONResponse(
-                status_code=400,
-                content={"error": "Question is required"}
-            )
-            
-        logger.info(f"Processing YouTube question: {question}")
+            raise HTTPException(status_code=400, detail="Question is required")
+        
         result = run_agent(question, context="youtube")
-        
-        # Ensure consistent response format
-        response_data = {
-            "response": result.get("response") or result.get("answer"),
-            "data": result.get("data") or result.get("youtube_data"),
-            "success": True
-        }
-        
-        if "error" in result:
-            logger.error(f"Error processing YouTube question: {result['error']}")
-            return JSONResponse(
-                status_code=500,
-                content={"error": result["error"], "success": False}
-            )
-            
-        logger.info("Successfully processed YouTube question")
-        return JSONResponse(content=response_data)
+        return JSONResponse(content=result)
     except Exception as e:
-        logger.error(f"Unexpected error in youtube_question: {str(e)}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Internal server error: {str(e)}", "success": False}
-        )
+        logger.error(f"Error processing YouTube question: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/chat")
 async def chat_question(request: Request):
@@ -90,56 +65,21 @@ async def chat_question(request: Request):
         logger.info("Received chat question request")
         data = await request.json()
         question = data.get("question")
-        
         if not question:
-            logger.warning("Question field is missing in request")
-            return JSONResponse(
-                status_code=400,
-                content={"error": "Question is required", "success": False}
-            )
-            
-        logger.info(f"Processing chat question: {question}")
-        result = run_agent(question, context="general")
+            raise HTTPException(status_code=400, detail="Question is required")
         
-        # Ensure consistent response format
-        response_data = {
-            "response": result.get("response") or result.get("answer"),
-            "success": True
-        }
-        
-        if "error" in result:
-            logger.error(f"Error processing chat question: {result['error']}")
-            return JSONResponse(
-                status_code=500,
-                content={"error": result["error"], "success": False}
-            )
-            
-        logger.info("Successfully processed chat question")
-        return JSONResponse(content=response_data)
+        result = run_agent(question)
+        return JSONResponse(content=result)
     except Exception as e:
-        logger.error(f"Unexpected error in chat_question: {str(e)}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Internal server error: {str(e)}", "success": False}
-        )
+        logger.error(f"Error processing chat question: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/health")
 async def health_check():
-    try:
-        logger.info("Health check request received")
-        # Verify environment variables
-        for var in required_env_vars:
-            if not os.getenv(var):
-                raise EnvironmentError(f"Missing {var}")
-        return JSONResponse(
-            content={"status": "ok", "message": "All services are operational"}
-        )
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"status": "error", "message": str(e)}
-        )
+    return {"status": "healthy"}
 
 # Create handler for AWS Lambda
-handler = Mangum(app) 
+handler = Mangum(app)
+
+# For Gunicorn
+application = app 
