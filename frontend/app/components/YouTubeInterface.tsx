@@ -42,6 +42,7 @@ export default function YouTubeInterface() {
     setIsLoading(true);
 
     try {
+      console.log('Making API request to:', `${process.env.NEXT_PUBLIC_API_URL}/api/youtube`);
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/youtube`, {
         method: 'POST',
         headers: {
@@ -50,15 +51,37 @@ export default function YouTubeInterface() {
         body: JSON.stringify({ question: input }),
       });
 
+      if (!response.ok) {
+        console.error('API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        const errorData = await response.text();
+        console.error('Error response:', errorData);
+        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      }
+
       const data = await response.json();
+      console.log('API Response:', data);
+      
+      if (!data.answer) {
+        console.error('Invalid response format:', data);
+        throw new Error('Invalid response format from API');
+      }
+
       const assistantMessage: YouTubeMessage = { 
         role: 'assistant' as const, 
-        content: data.response,
-        data: data.data
+        content: data.answer,
+        data: data.youtube_data
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error details:', error);
+      const errorMessage: YouTubeMessage = {
+        role: 'assistant' as const,
+        content: 'Sorry, there was an error processing your request. Please try again.'
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
