@@ -63,7 +63,7 @@ export default function ChatInterface() {
                 General Assistant
               </h2>
               <p className="text-gray-400">
-                Ask me anything! I'm here to help with general questions and discussions.
+                Ask me anything! I&apos;m here to help with general questions and discussions.
               </p>
               <div className="grid grid-cols-2 gap-4 mt-8">
                 <div className="bg-gray-800 p-4 rounded-lg">

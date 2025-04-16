@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { youtubeService, YouTubeVideo } from '../services/youtube';
 import { Search } from 'lucide-react';
 
@@ -56,11 +57,14 @@ export default function YouTubePanel() {
 
   const VideoCard = ({ video }: { video: YouTubeVideo }) => (
     <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <img
-        src={video.thumbnail}
-        alt={video.title}
-        className="w-full h-48 object-cover"
-      />
+      <div className="relative w-full h-48">
+        <Image
+          src={video.thumbnail}
+          alt={video.title}
+          fill
+          className="object-cover"
+        />
+      </div>
       <div className="p-4">
         <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2">
           {video.title}
