@@ -3,7 +3,6 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from mangum import Mangum
 from dotenv import load_dotenv
 from agent import run_agent
 
@@ -76,10 +75,4 @@ async def chat_question(request: Request):
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy"}
-
-# Create handler for AWS Lambda
-handler = Mangum(app)
-
-# For Gunicorn
-application = app 
+    return {"status": "healthy"} 
