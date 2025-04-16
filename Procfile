@@ -1,1 +1,1 @@
-web: cd api && uvicorn index:app --host 0.0.0.0 --port $PORT 
+web: cd api && uvicorn api.index:app --host 0.0.0.0 --port $PORT --workers 1 

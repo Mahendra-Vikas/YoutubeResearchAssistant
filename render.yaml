@@ -16,7 +16,7 @@ services:
     env: python
     pythonVersion: 3.11.7
     buildCommand: cd api && pip install -r requirements.txt
-    startCommand: cd api && uvicorn index:app --host 0.0.0.0 --port $PORT --workers 1
+    startCommand: cd api && uvicorn api.index:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
       - key: GEMINI_API_KEY
         value: AIzaSyDioSUyHngF6OIIb-jp7sJ3vSDoSZLDiY4
