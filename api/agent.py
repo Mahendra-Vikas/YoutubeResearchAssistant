@@ -3,7 +3,7 @@ import logging
 import google.generativeai as genai
 from dotenv import load_dotenv
 from youtube_utils import get_channel_info, get_latest_videos, extract_channel_name
-import pinecone
+from pinecone import Pinecone, ServerlessSpec
 from typing import Dict, Any, Optional
 
 # Configure logging with more detailed format
@@ -43,11 +43,23 @@ except Exception as e:
 # Initialize Pinecone
 try:
     logger.info("Initializing Pinecone...")
-    pinecone.init(
-        api_key=os.getenv("PINECONE_API_KEY"),
-        environment=f"{os.getenv('PINECONE_CLOUD')}-{os.getenv('PINECONE_REGION')}"
+    pc = Pinecone(
+        api_key=os.getenv("PINECONE_API_KEY")
     )
-    index = pinecone.Index(os.getenv("PINECONE_INDEX"))
+    
+    # Check if index exists, create if it doesn't
+    if os.getenv("PINECONE_INDEX") not in pc.list_indexes().names():
+        pc.create_index(
+            name=os.getenv("PINECONE_INDEX"),
+            dimension=1536,
+            metric='euclidean',
+            spec=ServerlessSpec(
+                cloud=os.getenv("PINECONE_CLOUD"),
+                region=os.getenv("PINECONE_REGION")
+            )
+        )
+    
+    index = pc.Index(os.getenv("PINECONE_INDEX"))
     logger.info("Pinecone initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize Pinecone: {str(e)}")
