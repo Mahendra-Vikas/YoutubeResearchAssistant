@@ -27,7 +27,7 @@ export default function ChatInterface() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    const userMessage = { role: 'user', content: input };
+    const userMessage: Message = { role: 'user' as const, content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
@@ -42,7 +42,7 @@ export default function ChatInterface() {
       });
 
       const data = await response.json();
-      const assistantMessage = { role: 'assistant', content: data.response };
+      const assistantMessage: Message = { role: 'assistant' as const, content: data.response };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error:', error);
