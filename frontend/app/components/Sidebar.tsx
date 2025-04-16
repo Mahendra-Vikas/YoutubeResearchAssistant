@@ -12,7 +12,7 @@ interface ChatHistory {
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'youtube'>('chat');
-  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([
+  const [chatHistory] = useState<ChatHistory[]>([
     { id: '1', title: 'MrBeast Channel Analysis', timestamp: '2 hours ago' },
     { id: '2', title: 'Content Strategy Research', timestamp: '5 hours ago' },
   ]);

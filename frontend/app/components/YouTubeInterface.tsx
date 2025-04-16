@@ -119,11 +119,11 @@ export default function YouTubeInterface() {
               <div className="grid grid-cols-2 gap-4 mt-8">
                 <div className="bg-gray-800 p-4 rounded-lg">
                   <h3 className="font-semibold text-[#EAEAEA]">Try asking:</h3>
-                  <p className="text-sm text-gray-400">"Show me MrBeast's latest video stats"</p>
+                  <p className="text-sm text-gray-400">&quot;Show me MrBeast&apos;s latest video stats&quot;</p>
                 </div>
                 <div className="bg-gray-800 p-4 rounded-lg">
                   <h3 className="font-semibold text-[#EAEAEA]">Or:</h3>
-                  <p className="text-sm text-gray-400">"Analyze PewDiePie's channel growth"</p>
+                  <p className="text-sm text-gray-400">&quot;Analyze PewDiePie&apos;s channel growth&quot;</p>
                 </div>
               </div>
             </div>

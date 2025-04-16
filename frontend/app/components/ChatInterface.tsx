@@ -68,11 +68,11 @@ export default function ChatInterface() {
               <div className="grid grid-cols-2 gap-4 mt-8">
                 <div className="bg-gray-800 p-4 rounded-lg">
                   <h3 className="font-semibold text-[#EAEAEA]">Try asking:</h3>
-                  <p className="text-sm text-gray-400">"What's the weather like today?"</p>
+                  <p className="text-sm text-gray-400">&quot;What&apos;s the weather like today?&quot;</p>
                 </div>
                 <div className="bg-gray-800 p-4 rounded-lg">
                   <h3 className="font-semibold text-[#EAEAEA]">Or:</h3>
-                  <p className="text-sm text-gray-400">"Tell me a fun fact"</p>
+                  <p className="text-sm text-gray-400">&quot;Tell me a fun fact&quot;</p>
                 </div>
               </div>
             </div>

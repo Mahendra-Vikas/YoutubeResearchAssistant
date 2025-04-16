@@ -1,6 +1,32 @@
 const YOUTUBE_API_KEY = 'AIzaSyATUUbrkJyOuMp_RimQatbsM0fhviZtWJU';
 const YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3';
 
+interface YouTubeApiVideoResponse {
+  id: {
+    videoId: string;
+  };
+  snippet: {
+    title: string;
+    description: string;
+    thumbnails: {
+      medium: {
+        url: string;
+      };
+    };
+    publishedAt: string;
+    channelTitle: string;
+  };
+}
+
+interface YouTubeApiStatsResponse {
+  items: Array<{
+    statistics: {
+      viewCount: string;
+      likeCount: string;
+    };
+  }>;
+}
+
 export interface YouTubeVideo {
   id: string;
   title: string;
@@ -31,13 +57,13 @@ export const youtubeService = {
     const data = await response.json();
     
     // Get video statistics in a separate call
-    const videoIds = data.items.map((item: any) => item.id.videoId).join(',');
+    const videoIds = data.items.map((item: YouTubeApiVideoResponse) => item.id.videoId).join(',');
     const statsResponse = await fetch(
       `${YOUTUBE_API_BASE_URL}/videos?part=statistics&id=${videoIds}&key=${YOUTUBE_API_KEY}`
     );
-    const statsData = await statsResponse.json();
+    const statsData: YouTubeApiStatsResponse = await statsResponse.json();
 
-    return data.items.map((item: any, index: number) => ({
+    return data.items.map((item: YouTubeApiVideoResponse, index: number) => ({
       id: item.id.videoId,
       title: item.snippet.title,
       description: item.snippet.description,
@@ -55,7 +81,20 @@ export const youtubeService = {
     );
     const data = await response.json();
 
-    return data.items.map((item: any) => ({
+    return data.items.map((item: { 
+      id: string;
+      snippet: {
+        title: string;
+        description: string;
+        thumbnails: { medium: { url: string } };
+        publishedAt: string;
+        channelTitle: string;
+      };
+      statistics: {
+        viewCount: string;
+        likeCount: string;
+      };
+    }) => ({
       id: item.id,
       title: item.snippet.title,
       description: item.snippet.description,
@@ -72,7 +111,18 @@ export const youtubeService = {
       `${YOUTUBE_API_BASE_URL}/channels?part=snippet,statistics&id=${channelId}&key=${YOUTUBE_API_KEY}`
     );
     const data = await response.json();
-    const channel = data.items[0];
+    const channel: {
+      id: string;
+      snippet: {
+        title: string;
+        description: string;
+        thumbnails: { medium: { url: string } };
+      };
+      statistics: {
+        subscriberCount: string;
+        videoCount: string;
+      };
+    } = data.items[0];
 
     return {
       id: channel.id,
@@ -89,7 +139,20 @@ export const youtubeService = {
       `${YOUTUBE_API_BASE_URL}/videos?part=snippet,statistics&id=${videoId}&key=${YOUTUBE_API_KEY}`
     );
     const data = await response.json();
-    const video = data.items[0];
+    const video: {
+      id: string;
+      snippet: {
+        title: string;
+        description: string;
+        thumbnails: { medium: { url: string } };
+        publishedAt: string;
+        channelTitle: string;
+      };
+      statistics: {
+        viewCount: string;
+        likeCount: string;
+      };
+    } = data.items[0];
 
     return {
       id: video.id,
