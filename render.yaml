@@ -9,12 +9,14 @@ services:
         value: https://youtube-research-backend.onrender.com
     healthCheckPath: /
     autoDeploy: true
+    plan: free
 
   - type: web
     name: youtube-research-backend
     env: python
+    pythonVersion: 3.11.7
     buildCommand: cd api && pip install -r requirements.txt
-    startCommand: cd api && gunicorn index:app
+    startCommand: cd api && gunicorn index:app --workers 1 --timeout 120
     envVars:
       - key: GEMINI_API_KEY
         value: AIzaSyDioSUyHngF6OIIb-jp7sJ3vSDoSZLDiY4
@@ -29,4 +31,5 @@ services:
       - key: YOUTUBE_API_KEY
         value: AIzaSyATUUbrkJyOuMp_RimQatbsM0fhviZtWJU
     healthCheckPath: /api/health
-    autoDeploy: true 
+    autoDeploy: true
+    plan: free 
